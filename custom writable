@@ -1,0 +1,124 @@
+package TestProject;
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import org.apache.hadoop.io.WritableComparable;
+# the below StringPairWritable class combines 2 strings in the format with comma(,) separator.
+# for a writable class there are few default override functions that need to be implemented.
+
+public class StringPairWritable  implements WritableComparable<StringPairWritable>{
+
+	String first;
+	String second;
+	
+	public StringPairWritable()
+	{
+		
+	}
+	public StringPairWritable(String first1,String second2)
+	{
+		this.first= first1;
+		this.second=second2;
+	}
+	@Override
+	public void readFields(DataInput arg0) throws IOException {
+		first=arg0.readUTF();
+		second = arg0.readUTF();
+	}
+
+	@Override
+	public void write(DataOutput arg0) throws IOException {
+		arg0.writeUTF(first);
+		arg0.writeUTF(second);
+	}
+
+	@Override
+	public int compareTo(StringPairWritable o) {
+		int ret= first.compareTo(o.first);
+		if(ret==0)
+			return second.compareTo(o.second);
+		return ret;
+	}
+	
+	public String toString()
+	{
+		return "("+first+","+second+")";
+	}
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((first == null) ? 0 : first.hashCode());
+		result = prime * result + ((second == null) ? 0 : second.hashCode());
+		return result;
+	}
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		StringPairWritable other = (StringPairWritable) obj;
+		if (first == null) {
+			if (other.first != null)
+				return false;
+		} else if (!first.equals(other.first))
+			return false;
+		if (second == null) {
+			if (other.second != null)
+				return false;
+		} else if (!second.equals(other.second))
+			return false;
+		return true;
+	}
+
+}
+
+# Read the stringpairwritable
+#the key in the below reduce method is stringPairWritable... to access we could use k.first, k.second
+# as mentioned in stringPairWritable class
+
+public class LeftRightColorReducer extends Reducer<StringPairWritable,IntWritable,Text,IntWritable>{
+	int sumCount;
+	StringBuilder keys= new StringBuilder();
+	
+	public void reduce(StringPairWritable k,Iterable<IntWritable> v, Context context) throws IOException,InterruptedException
+	{
+		int count=0;
+		if(k.first.equals(k.second))
+		{
+			for(IntWritable value: v)
+			{
+				count+= value.get();
+			}	
+			sumCount+=count;
+			String key= "("+k.first+","+k.second+")";
+			keys.append(key);
+		}
+		
+	}
+}
+
+
+#to create a stringPairWritable
+# say if left= "apple", right ="orange"
+# stringpairwritable will be built as "apple,orange" as described in the class
+
+public class LeftRightMapper extends Mapper<LongWritable,Text,StringPairWritable,IntWritable> {
+	
+	public void map(LongWritable k, Text v,Context context) throws IOException, InterruptedException
+	{
+		String[] line = v.toString().split(",");
+		if(line.length >2) 
+		{
+			String left=line[0].trim().toLowerCase();
+			String right=line[1].trim().toLowerCase();
+		context.write(new StringPairWritable(left,right),new IntWritable(1));	
+		}
+		
+	}
+}
